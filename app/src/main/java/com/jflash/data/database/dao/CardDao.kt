@@ -10,7 +10,7 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE listId = :listId ORDER BY nextDueAt")
     fun getCardsByList(listId: Long): Flow<List<CardEntity>>
 
-    @Query("SELECT * FROM cards WHERE listId = :listId AND nextDueAt <= :now ORDER BY nextDueAt LIMIT 1")
+    @Query("SELECT * FROM cards WHERE listId = :listId AND nextDueAt <= :now ORDER BY RANDOM() LIMIT 1")
     suspend fun getNextDueCard(listId: Long, now: Date = Date()): CardEntity?
 
     @Query("SELECT COUNT(*) FROM cards WHERE listId = :listId AND nextDueAt <= :now")
