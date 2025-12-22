@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jflash.data.model.CardType
@@ -23,6 +25,7 @@ import com.jflash.domain.model.Card
 import com.jflash.domain.model.FSRSGrade
 import com.jflash.domain.usecase.FSRSAlgorithm
 import com.jflash.ui.theme.*
+import com.jflash.ui.component.BackgroundImageLayout
 import com.jflash.MainActivity
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -163,6 +166,7 @@ fun QuestionView(
             fontSize = 48.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+            lineHeight = if (card.cardType == CardType.EN_TO_JP || card.cardType == CardType.EN_TO_JP_READING) (48 + 30).sp else 48.sp,
             modifier = Modifier.padding(32.dp)
         )
     }
@@ -175,94 +179,129 @@ fun AnswerView(
     onGrade: (FSRSGrade) -> Unit,
     onSpeak: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Display all information
+    // Determine which text to use for image matching
+    val imageMatchText = when {
+        card.japanese.isNotBlank() -> card.japanese
+        card.reading.isNotBlank() -> card.reading
+        else -> card.meaning
+    }
+    
+    BackgroundImageLayout(text = imageMatchText) {
         Column(
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = card.japanese,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            
-            if (card.reading != card.japanese) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+            // Display all information with semi-transparent background
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+                color = Color(0x4B808080), // Grey 808080 with 20% opacity (0x33 = 51/255 ≈ 20%)
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = card.reading,
-                        fontSize = 32.sp,
-                        textAlign = TextAlign.Center
+                        text = card.japanese,
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = Color.White
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    IconButton(onClick = onSpeak) {
-                        Icon(
-                            Icons.Default.VolumeUp,
-                            contentDescription = "Speak",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    
+                    if (card.reading != card.japanese) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = card.reading,
+                                fontSize = 32.sp,
+                                textAlign = TextAlign.Center,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            IconButton(onClick = onSpeak) {
+                                Icon(
+                                    Icons.Default.VolumeUp,
+                                    contentDescription = "Speak",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Text(
+                        text = card.meaning,
+                        fontSize = 24.sp,
+                        textAlign = TextAlign.Center,
+                        color = Color.White
+                    )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = card.meaning,
-                fontSize = 24.sp,
-                textAlign = TextAlign.Center
-            )
-        }
         
-        // Scheduling info
-        schedulingInfo?.let { info ->
-            Text(
-                text = "See again in ${formatInterval(info.interval)}",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(8.dp)
-            )
-        }
+            // Scheduling info with background
+            schedulingInfo?.let { info ->
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "See again in ${formatInterval(info.interval)}",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
         
-        // Grade buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            GradeButton(
-                text = "Forgot",
-                color = ForgotColor,
-                onClick = { onGrade(FSRSGrade.AGAIN) }
-            )
-            GradeButton(
-                text = "Almost",
-                color = AlmostColor,
-                onClick = { onGrade(FSRSGrade.HARD) }
-            )
-            GradeButton(
-                text = "Recalled",
-                color = RecalledColor,
-                onClick = { onGrade(FSRSGrade.GOOD) }
-            )
-            GradeButton(
-                text = "Easy",
-                color = EasyColor,
-                onClick = { onGrade(FSRSGrade.EASY) }
-            )
+            // Grade buttons - flush design like Hanly
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                GradeButton(
+                    text = "Forgot",
+                    color = ForgotColor,
+                    onClick = { onGrade(FSRSGrade.AGAIN) },
+                    modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                        topStart = 12.dp, bottomStart = 12.dp
+                    )
+                )
+                GradeButton(
+                    text = "Almost",
+                    color = AlmostColor,
+                    onClick = { onGrade(FSRSGrade.HARD) },
+                    modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
+                )
+                GradeButton(
+                    text = "Recalled",
+                    color = RecalledColor,
+                    onClick = { onGrade(FSRSGrade.GOOD) },
+                    modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
+                )
+                GradeButton(
+                    text = "Easy",
+                    color = EasyColor,
+                    onClick = { onGrade(FSRSGrade.EASY) },
+                    modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                        topEnd = 12.dp, bottomEnd = 12.dp
+                    )
+                )
+            }
         }
     }
 }
@@ -271,14 +310,23 @@ fun AnswerView(
 fun GradeButton(
     text: String,
     color: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    shape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
 ) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = color),
-        modifier = Modifier.height(56.dp)
+        modifier = modifier.height(48.dp),
+        shape = shape,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Text(text, fontWeight = FontWeight.Bold)
+        Text(
+            text = text, 
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            maxLines = 1
+        )
     }
 }
 
