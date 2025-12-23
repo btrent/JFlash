@@ -45,8 +45,9 @@ This is an Android flashcard app following Clean Architecture principles with th
 - **Use Cases**: Business logic (`ImportUseCase`, `FSRSAlgorithm`)
 
 ### Presentation Layer (`app/src/main/java/com/jflash/ui/`)
-- **Screens**: Jetpack Compose UI (`ReviewScreen`)
-- **ViewModels**: State management (`ReviewViewModel`)
+- **Screens**: Jetpack Compose UI (`ReviewScreen`, `ViewListScreen`)
+- **ViewModels**: State management (`ReviewViewModel`, `ViewListViewModel`)
+- **Components**: Reusable UI components (`BackgroundImageLayout`)
 - **Theme**: Material Design 3 theming
 
 ### Dependency Injection (`app/src/main/java/com/jflash/di/`)
@@ -68,7 +69,11 @@ This is an Android flashcard app following Clean Architecture principles with th
 - Room database (`JFlashDatabase`) for user data
 - External SQLite database (`Japanese4.db`) bundled in assets for reference data
 
-**Navigation**: Currently single-screen app, ready for Navigation Compose expansion
+**Navigation**: Multi-screen app with Navigation Compose:
+- ReviewScreen: Main spaced repetition interface with background images
+- ViewListScreen: Word list viewer with progress tracking
+
+**Background Images**: Dynamic kanji background images from `app/src/main/assets/bg/` using Coil image loading
 
 ## Technology Stack
 
@@ -77,6 +82,7 @@ This is an Android flashcard app following Clean Architecture principles with th
 - **Database**: Room + bundled SQLite
 - **DI**: Dagger Hilt
 - **Async**: Coroutines + Flow
+- **Images**: Coil for image loading and background scaling
 - **Testing**: JUnit + Mockito
 - **Build**: Gradle Kotlin DSL
 
@@ -86,3 +92,37 @@ This is an Android flashcard app following Clean Architecture principles with th
 - Uses kapt for annotation processing (Room, Hilt)
 - Compose BOM manages Compose library versions
 - Java 17 compatibility
+
+## Recent Updates
+
+### Session 2024-12-23: View List Screen & Progress Tracking
+
+**Fixed Percentage Learned Display Issue:**
+- Issue: Percentage learned always showed 0% even after grading cards as "Easy"
+- Root cause: `ViewListViewModel` was using `.first()` instead of collecting Flow updates
+- Solution: Updated to use `collect` for live database updates in `ViewListViewModel.kt:54`
+
+**Implemented Word Grouping:**
+- Problem: Duplicate entries for same word/reading/meaning combinations (2-4 cards per word)
+- Solution: Added `WordGroup` data class and `groupCardsByWord()` function
+- Feature: Shows average percentage learned across all cards for each word
+- Display: "Progress (X cards): Y% learned" format with card count
+
+**Updated App Icon:**
+- Replaced default Android icon with custom `icon.png`
+- Generated all required density variants (mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi)
+- Created both standard and round icon variants
+- Updated `AndroidManifest.xml` with icon references
+- Icon shows Android character with Japanese flashcards
+
+**File Changes:**
+- `app/src/main/java/com/jflash/ui/screen/ViewListViewModel.kt`: Fixed Flow collection, added word grouping
+- `app/src/main/java/com/jflash/ui/screen/ViewListScreen.kt`: Updated to use WordGroup instead of Card
+- `app/src/main/AndroidManifest.xml`: Added icon configuration
+- `app/src/main/res/mipmap-*/`: Created icon files for all densities
+
+**Technical Details:**
+- WordGroup calculation uses `groupBy { Triple(japanese, reading, meaning) }`
+- Average percentage: `groupedCards.map { it.percentLearned }.average()`
+- Real-time updates via Flow collection ensure UI stays synchronized with database
+- Icon generation used macOS `sips` command for batch resizing

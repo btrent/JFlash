@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.jflash.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jflash.data.model.CardType
@@ -34,7 +37,8 @@ import java.util.Locale
 @Composable
 fun ReviewScreen(
     viewModel: ReviewViewModel = hiltViewModel(),
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onViewListClick: (com.jflash.domain.model.List) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentCard by viewModel.currentCard.collectAsStateWithLifecycle()
@@ -69,6 +73,10 @@ fun ReviewScreen(
                 },
                 onImportClick = {
                     (context as? MainActivity)?.openFilePicker()
+                    scope.launch { drawerState.close() }
+                },
+                onViewListClick = { list ->
+                    onViewListClick(list)
                     scope.launch { drawerState.close() }
                 }
             )
@@ -335,7 +343,8 @@ fun DrawerContent(
     lists: List<com.jflash.domain.model.List>,
     selectedList: com.jflash.domain.model.List?,
     onListSelected: (com.jflash.domain.model.List) -> Unit,
-    onImportClick: () -> Unit
+    onImportClick: () -> Unit,
+    onViewListClick: (com.jflash.domain.model.List) -> Unit = {}
 ) {
     ModalDrawerSheet {
         Column(
@@ -375,6 +384,18 @@ fun DrawerContent(
             lists.forEach { list ->
                 ListItem(
                     headlineContent = { Text(list.title) },
+                    trailingContent = {
+                        IconButton(
+                            onClick = { onViewListClick(list) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.eye),
+                                contentDescription = "View list",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onListSelected(list) }

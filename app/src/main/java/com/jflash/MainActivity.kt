@@ -10,10 +10,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.jflash.domain.usecase.ImportUseCase
 import com.jflash.ui.screen.ReviewScreen
+import com.jflash.ui.screen.ViewListScreen
 import com.jflash.ui.theme.JFlashTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -47,9 +53,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ReviewScreen(
-                        onMenuClick = { /* TODO */ }
-                    )
+                    JFlashNavigation()
                 }
             }
         }
@@ -70,5 +74,33 @@ class MainActivity : ComponentActivity() {
     
     fun openFilePicker() {
         filePickerLauncher.launch("*/*")
+    }
+}
+
+@Composable
+fun JFlashNavigation() {
+    val navController = rememberNavController()
+    
+    NavHost(
+        navController = navController,
+        startDestination = "review"
+    ) {
+        composable("review") {
+            ReviewScreen(
+                onMenuClick = { /* TODO */ },
+                onViewListClick = { list ->
+                    navController.navigate("view_list/${list.id}")
+                }
+            )
+        }
+        composable("view_list/{listId}") { backStackEntry ->
+            val listId = backStackEntry.arguments?.getString("listId") ?: ""
+            ViewListScreen(
+                listId = listId,
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
