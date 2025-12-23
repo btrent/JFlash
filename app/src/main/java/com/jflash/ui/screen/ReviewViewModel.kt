@@ -98,7 +98,8 @@ class ReviewViewModel @Inject constructor(
                     fsrsState = schedulingInfo.newState,
                     nextDueAt = schedulingInfo.nextReview,
                     lastShownAt = Date(),
-                    updatedAt = Date()
+                    updatedAt = Date(),
+                    percentLearned = fsrsAlgorithm.calculatePercentLearned(schedulingInfo.newState)
                 )
                 
                 cardRepository.updateCard(updatedCard)

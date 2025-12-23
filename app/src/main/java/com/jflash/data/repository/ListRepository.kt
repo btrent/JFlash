@@ -22,6 +22,10 @@ class ListRepository @Inject constructor(
         return listDao.getListById(id)?.toDomainModel()
     }
 
+    suspend fun getListById(id: String): DomainList? {
+        return listDao.getListById(id.toLong())?.toDomainModel()
+    }
+
     suspend fun getListByTitle(title: String): DomainList? {
         return listDao.getListByTitle(title)?.toDomainModel()
     }

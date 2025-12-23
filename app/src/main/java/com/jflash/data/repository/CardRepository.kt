@@ -7,6 +7,7 @@ import com.jflash.domain.model.Card
 import com.jflash.domain.model.FSRSState
 import com.jflash.domain.usecase.FSRSAlgorithm
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.Date
 import javax.inject.Inject
@@ -21,6 +22,12 @@ class CardRepository @Inject constructor(
         return cardDao.getCardsByList(listId).map { entities ->
             entities.map { it.toDomainModel() }
         }
+    }
+
+    suspend fun getCardsByListId(listId: String): List<Card> {
+        return cardDao.getCardsByList(listId.toLong()).map { entities ->
+            entities.map { it.toDomainModel() }
+        }.first()
     }
 
     suspend fun getNextDueCard(listId: Long): Card? {
