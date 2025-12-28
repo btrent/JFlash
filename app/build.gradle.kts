@@ -26,7 +26,7 @@ android {
 
     defaultConfig {
         applicationId = "com.jflash"
-        minSdk = 21
+        minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
