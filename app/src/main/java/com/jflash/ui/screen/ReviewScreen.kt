@@ -203,7 +203,7 @@ fun AnswerView(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxSize(),
-                color = Color(0x4B808080), // Grey 808080 with 20% opacity (0x33 = 51/255 ≈ 20%)
+                color = Color(0xB4808080), 
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
             ) {
                 Column(
