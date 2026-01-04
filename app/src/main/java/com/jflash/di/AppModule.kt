@@ -2,9 +2,12 @@ package com.jflash.di
 
 import android.content.Context
 import com.jflash.data.database.JFlashDatabase
+import com.jflash.data.database.JapaneseDbHelper
 import com.jflash.data.database.dao.CardDao
 import com.jflash.data.database.dao.DailyStatsDao
 import com.jflash.data.database.dao.ListDao
+import com.jflash.data.repository.SentenceRepository
+import com.jflash.data.repository.SentenceRepositoryImpl
 import com.jflash.domain.usecase.FSRSAlgorithm
 import dagger.Module
 import dagger.Provides
@@ -42,6 +45,18 @@ object AppModule {
     @Singleton
     fun provideFSRSAlgorithm(): FSRSAlgorithm {
         return FSRSAlgorithm()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideJapaneseDbHelper(@ApplicationContext context: Context): JapaneseDbHelper {
+        return JapaneseDbHelper(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSentenceRepository(japaneseDbHelper: JapaneseDbHelper): SentenceRepository {
+        return SentenceRepositoryImpl(japaneseDbHelper)
     }
     
     @Provides

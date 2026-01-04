@@ -2,6 +2,7 @@ package com.jflash.data.database
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import com.jflash.domain.model.Sentence
 import java.io.File
 import java.io.FileOutputStream
 
@@ -9,6 +10,7 @@ class JapaneseDbHelper(private val context: Context) {
     companion object {
         const val DB_NAME = "Japanese4.db"
         const val ASSETS_DB_PATH = "Japanese4.db"
+        const val DB_VERSION = 2 // Increment this when database changes
     }
 
     private var database: SQLiteDatabase? = null
@@ -16,9 +18,18 @@ class JapaneseDbHelper(private val context: Context) {
     fun getDatabase(): SQLiteDatabase {
         if (database == null || !database!!.isOpen) {
             val dbFile = getDatabaseFile()
-            if (!dbFile.exists()) {
+            val versionFile = getVersionFile()
+            
+            // Check if database needs to be updated
+            val needsUpdate = !dbFile.exists() || 
+                !versionFile.exists() || 
+                versionFile.readText().toIntOrNull() != DB_VERSION
+            
+            if (needsUpdate) {
                 copyDatabaseFromAssets()
+                versionFile.writeText(DB_VERSION.toString())
             }
+            
             database = SQLiteDatabase.openDatabase(
                 dbFile.absolutePath,
                 null,
@@ -52,8 +63,51 @@ class JapaneseDbHelper(private val context: Context) {
         }
     }
 
+    fun searchSentences(searchTerm: String): List<Sentence> {
+        val sentences = mutableListOf<Sentence>()
+        
+        try {
+            val cursor = getDatabase().query(
+                "klc_sentences",
+                arrayOf("ID", "VOLUME", "KANJI_NUMBER", "SENTENCE_NUMBER", "JAPANESE_SENTENCE", "PRONUNCIATION", "ENGLISH_TRANSLATION", "NOTES"),
+                "JAPANESE_SENTENCE LIKE ?",
+                arrayOf("%$searchTerm%"),
+                null,
+                null,
+                null
+            )
+
+            cursor.use {
+                while (it.moveToNext()) {
+                    sentences.add(
+                        Sentence(
+                            id = it.getString(0) ?: "",
+                            volume = it.getString(1),
+                            kanjiNumber = if (it.isNull(2)) null else it.getInt(2),
+                            sentenceNumber = if (it.isNull(3)) null else it.getInt(3),
+                            japaneseSentence = it.getString(4) ?: "",
+                            pronunciation = it.getString(5) ?: "",
+                            englishTranslation = it.getString(6) ?: "",
+                            notes = it.getString(7)
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // If the table doesn't exist or there's an error, return empty list
+            // This handles cases where the database hasn't been updated yet
+            android.util.Log.w("JapaneseDbHelper", "Failed to search sentences: ${e.message}")
+        }
+        
+        return sentences
+    }
+
     private fun getDatabaseFile(): File {
         return File(context.filesDir, DB_NAME)
+    }
+    
+    private fun getVersionFile(): File {
+        return File(context.filesDir, "${DB_NAME}.version")
     }
 
     private fun copyDatabaseFromAssets() {

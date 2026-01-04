@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jflash.data.repository.CardRepository
 import com.jflash.data.repository.ListRepository
+import com.jflash.data.repository.SentenceRepository
 import com.jflash.data.repository.StatsRepository
 import com.jflash.domain.model.Card
 import com.jflash.domain.model.FSRSGrade
+import com.jflash.domain.model.Sentence
 import com.jflash.domain.model.List as DomainList
 import com.jflash.domain.usecase.FSRSAlgorithm
+import com.jflash.domain.util.SentenceSearchUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,6 +23,7 @@ class ReviewViewModel @Inject constructor(
     private val cardRepository: CardRepository,
     private val listRepository: ListRepository,
     private val statsRepository: StatsRepository,
+    private val sentenceRepository: SentenceRepository,
     private val fsrsAlgorithm: FSRSAlgorithm
 ) : ViewModel() {
     
@@ -34,6 +38,9 @@ class ReviewViewModel @Inject constructor(
     
     private val _schedulingInfo = MutableStateFlow<FSRSAlgorithm.SchedulingInfo?>(null)
     val schedulingInfo: StateFlow<FSRSAlgorithm.SchedulingInfo?> = _schedulingInfo.asStateFlow()
+    
+    private val _sentences = MutableStateFlow<List<Sentence>>(emptyList())
+    val sentences: StateFlow<List<Sentence>> = _sentences.asStateFlow()
     
     init {
         loadLists()
@@ -72,6 +79,20 @@ class ReviewViewModel @Inject constructor(
             _currentCard.value = nextCard
             _showAnswer.value = false
             _schedulingInfo.value = null
+            
+            // Load sentences for the new card
+            nextCard?.let { card ->
+                loadSentencesForCard(card)
+            } ?: run {
+                _sentences.value = emptyList()
+            }
+        }
+    }
+    
+    private suspend fun loadSentencesForCard(card: Card) {
+        val searchTerm = SentenceSearchUtil.extractSearchTerm(card.japanese)
+        sentenceRepository.searchSentences(searchTerm).collect { sentences ->
+            _sentences.value = sentences
         }
     }
     
