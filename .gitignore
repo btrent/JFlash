@@ -3,3 +3,4 @@ app/build/
 app/src/main/assets/Japanese4.db
 .gradle
 export.japanese
+.DS_STORE

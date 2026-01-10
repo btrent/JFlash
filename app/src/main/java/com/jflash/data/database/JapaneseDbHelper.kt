@@ -10,7 +10,7 @@ class JapaneseDbHelper(private val context: Context) {
     companion object {
         const val DB_NAME = "Japanese4.db"
         const val ASSETS_DB_PATH = "Japanese4.db"
-        const val DB_VERSION = 2 // Increment this when database changes
+        const val DB_VERSION = 3 // Increment this when database changes
     }
 
     private var database: SQLiteDatabase? = null

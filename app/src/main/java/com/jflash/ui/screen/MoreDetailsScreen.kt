@@ -72,9 +72,9 @@ private fun SentenceItem(
             lineHeight = 24.sp
         )
         
-        // Pronunciation
+        // Pronunciation (strip all whitespace for better readability)
         Text(
-            text = sentence.pronunciation,
+            text = sentence.pronunciation.replace(Regex("\\s+"), ""),
             color = textColor,
             fontSize = 14.sp,
             fontWeight = FontWeight.Light,
