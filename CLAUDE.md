@@ -172,3 +172,71 @@ This is an Android flashcard app following Clean Architecture principles with th
 - Used Foundation's `HorizontalPager` with `ExperimentalFoundationApi` for swipe navigation
 - Implemented real-time sentence loading when cards change via Flow collections
 - Background images continue to work with new pager layout
+
+### Session 2026-01-18: Duplicate Card Prevention & Import Testing
+
+**Fixed Duplicate Card Creation on Re-Import:**
+- Issue: Re-importing a list with the same name created duplicate cards for all words
+- Root cause: Original ref-based detection failed when `japaneseDbRef` was NULL (old imports)
+- Solution: Added content-based duplicate detection as fallback
+
+**Duplicate Detection Logic (`ImportUseCase.syncList()`):**
+1. First checks by `japaneseDbRef` (ref-based detection)
+2. For new refs, also checks if card content already exists (japanese + reading + meaning + cardType)
+3. Only creates cards that pass both checks
+
+**Architecture Changes for Testability:**
+- Created `JapaneseEntryProvider` interface to abstract database access
+- `JapaneseDbHelper` now implements this interface
+- `ImportUseCase` accepts injectable `entryProviderFactory` for testing
+- Made `importLists()` method internal for test access
+
+**New Test File (`ImportUseCaseSyncTest.kt`):**
+- Tests ref-based duplicate skipping
+- Tests content-based duplicate skipping (same content, different ref)
+- Tests that new cards are properly added
+- Tests that removed words are deleted from list
+- Uses mockito-kotlin for cleaner mock syntax
+
+**File Changes:**
+- `app/src/main/java/com/jflash/data/database/JapaneseEntryProvider.kt`: New interface
+- `app/src/main/java/com/jflash/data/database/JapaneseDbHelper.kt`: Implements interface
+- `app/src/main/java/com/jflash/data/database/dao/CardDao.kt`: Added `cardExists()` query, `DISTINCT` on `getExistingRefs()`
+- `app/src/main/java/com/jflash/data/repository/CardRepository.kt`: Added `cardExists()` method
+- `app/src/main/java/com/jflash/domain/usecase/ImportUseCase.kt`: Content-based detection, testable factory
+- `app/src/main/java/com/jflash/di/AppModule.kt`: Provides `JapaneseEntryProvider` factory
+- `app/src/test/java/com/jflash/ImportUseCaseSyncTest.kt`: New test file (6 tests)
+- `app/build.gradle.kts`: Added mockito-kotlin dependency
+
+**Device Database Cleanup Procedure:**
+If duplicate cards exist on a device, clean them up with:
+```bash
+# Pull database with WAL
+adb shell "run-as com.jflash cat /data/data/com.jflash/databases/jflash.db" > /tmp/jflash.db
+adb shell "run-as com.jflash cat /data/data/com.jflash/databases/jflash.db-wal" > /tmp/jflash.db-wal
+adb shell "run-as com.jflash cat /data/data/com.jflash/databases/jflash.db-shm" > /tmp/jflash.db-shm
+
+# Delete duplicates keeping best learning progress
+sqlite3 /tmp/jflash.db "
+WITH ranked AS (
+  SELECT id, ROW_NUMBER() OVER (
+    PARTITION BY japanese, reading, meaning, cardType
+    ORDER BY fsrsStability DESC, fsrsReps DESC, id ASC
+  ) as rn FROM cards
+)
+DELETE FROM cards WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+PRAGMA wal_checkpoint(TRUNCATE);
+"
+
+# Push cleaned database back
+adb shell am force-stop com.jflash
+adb push /tmp/jflash.db /data/local/tmp/jflash_clean.db
+adb shell "run-as com.jflash sh -c 'cat /data/local/tmp/jflash_clean.db > /data/data/com.jflash/databases/jflash.db'"
+adb shell "run-as com.jflash rm -f /data/data/com.jflash/databases/jflash.db-wal"
+adb shell "run-as com.jflash rm -f /data/data/com.jflash/databases/jflash.db-shm"
+```
+
+**Technical Notes:**
+- Room uses WAL (Write-Ahead Logging) - must pull all 3 files (db, db-wal, db-shm) to see uncommitted changes
+- Cards without `japaneseDbRef` are from older imports before refs were stored
+- Content-based detection uses exact match on (listId, japanese, reading, meaning, cardType)

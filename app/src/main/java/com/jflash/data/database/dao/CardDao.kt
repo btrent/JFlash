@@ -2,6 +2,7 @@ package com.jflash.data.database.dao
 
 import androidx.room.*
 import com.jflash.data.database.entity.CardEntity
+import com.jflash.data.model.CardType
 import kotlinx.coroutines.flow.Flow
 import java.util.Date
 
@@ -22,8 +23,11 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE listId = :listId AND japaneseDbRef = :ref")
     suspend fun getCardByRef(listId: Long, ref: Long): CardEntity?
 
-    @Query("SELECT japaneseDbRef FROM cards WHERE listId = :listId AND japaneseDbRef IS NOT NULL")
+    @Query("SELECT DISTINCT japaneseDbRef FROM cards WHERE listId = :listId AND japaneseDbRef IS NOT NULL")
     suspend fun getExistingRefs(listId: Long): List<Long>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM cards WHERE listId = :listId AND japanese = :japanese AND reading = :reading AND meaning = :meaning AND cardType = :cardType)")
+    suspend fun cardExists(listId: Long, japanese: String, reading: String, meaning: String, cardType: CardType): Boolean
 
     @Insert
     suspend fun insertCard(card: CardEntity): Long

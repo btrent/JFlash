@@ -3,6 +3,8 @@ package com.jflash.domain.usecase
 import android.content.Context
 import android.net.Uri
 import com.jflash.data.database.JapaneseDbHelper
+import com.jflash.data.database.JapaneseEntry
+import com.jflash.data.database.JapaneseEntryProvider
 import com.jflash.data.database.entity.CardEntity
 import com.jflash.data.model.CardType
 import com.jflash.data.model.ImportData
@@ -19,9 +21,10 @@ import javax.inject.Inject
 class ImportUseCase @Inject constructor(
     private val context: Context,
     private val listRepository: ListRepository,
-    private val cardRepository: CardRepository
+    private val cardRepository: CardRepository,
+    private val entryProviderFactory: @JvmSuppressWildcards () -> JapaneseEntryProvider = { JapaneseDbHelper(context) }
 ) {
-    private val json = Json { 
+    private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
@@ -45,57 +48,70 @@ class ImportUseCase @Inject constructor(
         }
     }
 
-    private suspend fun importLists(importData: ImportData) {
-        val japaneseDb = JapaneseDbHelper(context)
-        
+    // Internal for testing
+    internal suspend fun importLists(importData: ImportData) {
+        val entryProvider = entryProviderFactory()
+
         try {
             for (importList in importData.lists) {
                 val existingList = listRepository.getListByTitle(importList.title)
-                val listId = if (existingList != null) {
+                if (existingList != null) {
                     // Sync existing list
-                    syncList(existingList.id, importList, japaneseDb)
-                    existingList.id
+                    syncList(existingList.id, importList, entryProvider)
                 } else {
                     // Create new list
                     val newListId = listRepository.createList(importList.title)
-                    importAllEntries(newListId, importList, japaneseDb)
-                    newListId
+                    importAllEntries(newListId, importList, entryProvider)
                 }
             }
         } finally {
-            japaneseDb.close()
+            entryProvider.close()
         }
     }
 
-    private suspend fun syncList(listId: Long, importList: com.jflash.data.model.ImportList, japaneseDb: JapaneseDbHelper) {
+    private suspend fun syncList(listId: Long, importList: com.jflash.data.model.ImportList, entryProvider: JapaneseEntryProvider) {
         val existingRefs = cardRepository.getExistingRefs(listId).toSet()
         val importRefs = importList.entries.map { it.ref }.toSet()
-        
+
         // Remove cards that are no longer in the import
         val refsToRemove = existingRefs.minus(importRefs)
         if (refsToRemove.isNotEmpty()) {
             cardRepository.deleteCardsByRefs(listId, refsToRemove.toList())
         }
-        
-        // Add new cards
+
+        // Add new cards - only for refs that don't already exist
         val refsToAdd = importRefs.minus(existingRefs)
         val cardsToAdd = mutableListOf<CardEntity>()
-        
+
         for (ref in refsToAdd) {
-            val entry = japaneseDb.queryEntry(ref) ?: continue
-            cardsToAdd.addAll(createCardsFromEntry(listId, entry, ref))
+            val entry = entryProvider.queryEntry(ref) ?: continue
+            val candidateCards = createCardsFromEntry(listId, entry, ref)
+
+            // Filter out cards that already exist by content (in case same word was added with different ref)
+            for (card in candidateCards) {
+                val exists = cardRepository.cardExists(
+                    listId = listId,
+                    japanese = card.japanese,
+                    reading = card.reading,
+                    meaning = card.meaning,
+                    cardType = card.cardType
+                )
+                if (!exists) {
+                    cardsToAdd.add(card)
+                }
+            }
         }
-        
+
         if (cardsToAdd.isNotEmpty()) {
             cardRepository.createCards(cardsToAdd)
         }
     }
 
-    private suspend fun importAllEntries(listId: Long, importList: com.jflash.data.model.ImportList, japaneseDb: JapaneseDbHelper) {
+    private suspend fun importAllEntries(listId: Long, importList: com.jflash.data.model.ImportList, entryProvider: JapaneseEntryProvider) {
         val cards = mutableListOf<CardEntity>()
-        
+
         for (importEntry in importList.entries) {
-            val entry = japaneseDb.queryEntry(importEntry.ref) ?: continue
+            val entry = entryProvider.queryEntry(importEntry.ref) ?: continue
             cards.addAll(createCardsFromEntry(listId, entry, importEntry.ref))
         }
         
@@ -104,7 +120,7 @@ class ImportUseCase @Inject constructor(
         }
     }
 
-    private fun createCardsFromEntry(listId: Long, entry: com.jflash.data.database.JapaneseEntry, ref: Long): List<CardEntity> {
+    private fun createCardsFromEntry(listId: Long, entry: JapaneseEntry, ref: Long): List<CardEntity> {
         val japanese = entry.entry
         val reading = entry.furigana ?: entry.entry
         val meaning = entry.summary ?: "(no meaning in db)"

@@ -6,7 +6,7 @@ import com.jflash.domain.model.Sentence
 import java.io.File
 import java.io.FileOutputStream
 
-class JapaneseDbHelper(private val context: Context) {
+class JapaneseDbHelper(private val context: Context) : JapaneseEntryProvider {
     companion object {
         const val DB_NAME = "Japanese4.db"
         const val ASSETS_DB_PATH = "Japanese4.db"
@@ -39,7 +39,7 @@ class JapaneseDbHelper(private val context: Context) {
         return database!!
     }
 
-    fun queryEntry(rowId: Long): JapaneseEntry? {
+    override fun queryEntry(rowId: Long): JapaneseEntry? {
         val cursor = getDatabase().query(
             "entries",
             arrayOf("Entry", "Furigana", "Summary"),
@@ -121,7 +121,7 @@ class JapaneseDbHelper(private val context: Context) {
         }
     }
 
-    fun close() {
+    override fun close() {
         database?.close()
         database = null
     }

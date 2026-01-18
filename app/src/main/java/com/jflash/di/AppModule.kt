@@ -3,6 +3,7 @@ package com.jflash.di
 import android.content.Context
 import com.jflash.data.database.JFlashDatabase
 import com.jflash.data.database.JapaneseDbHelper
+import com.jflash.data.database.JapaneseEntryProvider
 import com.jflash.data.database.dao.CardDao
 import com.jflash.data.database.dao.DailyStatsDao
 import com.jflash.data.database.dao.ListDao
@@ -51,6 +52,11 @@ object AppModule {
     @Singleton
     fun provideJapaneseDbHelper(@ApplicationContext context: Context): JapaneseDbHelper {
         return JapaneseDbHelper(context)
+    }
+
+    @Provides
+    fun provideJapaneseEntryProviderFactory(@ApplicationContext context: Context): () -> JapaneseEntryProvider {
+        return { JapaneseDbHelper(context) }
     }
     
     @Provides

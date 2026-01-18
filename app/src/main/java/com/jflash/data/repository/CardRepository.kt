@@ -82,6 +82,10 @@ class CardRepository @Inject constructor(
         cardDao.deleteCardsByRefs(listId, refs)
     }
 
+    suspend fun cardExists(listId: Long, japanese: String, reading: String, meaning: String, cardType: CardType): Boolean {
+        return cardDao.cardExists(listId, japanese, reading, meaning, cardType)
+    }
+
     private fun CardEntity.toDomainModel(): Card {
         val fsrsState = FSRSState(
             difficulty = fsrsDifficulty,
